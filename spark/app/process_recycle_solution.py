@@ -44,24 +44,20 @@ from pyspark.sql.functions import lit, col, split, explode
 
 # config AWS RDS
 AWS_RDS_URL = "jdbc:mysql://{0}:{1}/{2}".format(Variable.get('aws_rds_host'), 3306, Variable.get('aws_rds_database'))
-AWS_RDS_DB = Variable.get('aws_rds_database')
 AWS_RDS_USER = Variable.get('aws_rds_user')
 AWS_RDS_PASSWORD = Variable.get('aws_rds_password')
 
-recycle_solution = "/home/user/airflow/data/solutions/recycle_solution_240827.csv"
+recycle_solution = ""
 
 # Create Spark Session
-spark = (SparkSession.builder.appName("RecycleSolution").getOrCreate())
+spark = SparkSession.builder.appName("RecycleSolution").getOrCreate()
 
 # JDBC Reader Settings
-reader = (spark
-        .read
-        .format("jdbc")
+reader = (spark.read.format("jdbc")
         .option("url", AWS_RDS_URL)
         .option('driver', 'com.mysql.cj.jdbc.Driver')
         .option("user", AWS_RDS_USER)
         .option("password", AWS_RDS_PASSWORD))
-
 
 # Load CSV file
 rs_df = (spark.read.format("csv")
@@ -70,100 +66,76 @@ rs_df = (spark.read.format("csv")
         .load(recycle_solution))
 
 # Filter valid data
-filterd_df = (rs_df
+filtered_df = (rs_df
         .filter(col("solution").isNotNull())
         .filter(col("tag").isNotNull())
         .filter(col("material").isNotNull()))
 
+# Load existing data from RDS
+waste_rds_df = reader.option("dbtable", "waste").load()
 
-# Find and insert newly added data
-new_waste_df = (filterd_df
-        .join(reader.option("dbtable", "waste").load(), on="name", how="outer")
-        .filter(col("id").isNull()))
-
-not_in_rds_list = list(new_waste_df.select("name").toPandas()["name"].unique())
+# Check and insert new waste data
+new_waste_df = (filtered_df
+        .join(waste_rds_df, on="name", how="left_anti"))
+new_waste_df.show()
 
 if new_waste_df.count() > 0:
-    new_waste_insert_df = (rs_df
-        .filter(col("name").isin(not_in_rds_list))
+    new_waste_insert_df = (new_waste_df
         .withColumn("created_date",     lit(datetime.datetime.now()))
         .withColumn("modified_date",    lit(datetime.datetime.now()))
-        .withColumn("image_url",        rs_df["imgUrl"])
-        .withColumn("name",             rs_df["name"])
-        .withColumn("solution",         rs_df["solution"])
         .withColumn("state",            lit(1))
         .withColumn("writer_id",        lit(1))
-        .select("created_date", "modified_date", "image_url", "name", "solution", "state", "writer_id"))
+        .select("created_date", "modified_date", col("imgUrl").alias("image_url"), "name", "solution", "state", "writer_id"))
     
-    (new_waste_insert_df
-        .write
-        .format("jdbc")
-        .option("url", AWS_RDS_URL)
-        .option("dbtable", "waste")
-        .option("user", AWS_RDS_USER)
-        .option("password", AWS_RDS_PASSWORD)
-        .option("driver", "com.mysql.cj.jdbc.Driver")
-        .mode("append")
-        .save())
-    
+    new_waste_insert_df.write.format("jdbc") \
+        .option("url", AWS_RDS_URL) \
+        .option("dbtable", "waste") \
+        .option("user", AWS_RDS_USER) \
+        .option("password", AWS_RDS_PASSWORD) \
+        .option("driver", "com.mysql.cj.jdbc.Driver") \
+        .mode("append") \
+        .save()
 
-# Import existing waste, tag, category tables
-waste_rds_df = (reader
-        .option("dbtable", "waste")
-        .load())
-tag_rds_df = (reader
-        .option("dbtable", "tag")
-        .load()
-        .select(col("waste_id").alias("id"), col("name").alias("tag")))
-category_rds_df = (reader
-        .option("dbtable", "category")
-        .load()
-        .select(col("waste_id").alias("id"), col("name").alias("category")))
-joined_df = (waste_rds_df
-        .join(tag_rds_df, on="id", how="inner")
-        .join(category_rds_df, on="id", how="inner"))
+# Reload updated waste data
+waste_rds_df = reader.option("dbtable", "waste").load()
 
+# Load existing tag and category data
+tag_rds_df = reader.option("dbtable", "tag").load().select(col("waste_id").alias("id"), col("name").alias("tag"))
+category_rds_df = reader.option("dbtable", "category").load().select(col("waste_id").alias("id"), col("name").alias("material"))
 
-# Check and insert new tag data
-not_in_tag_df = (filterd_df
+# Explode and insert new tag data
+new_tags_df = (filtered_df
         .withColumn("tag", explode(split("tag", "#")))
         .filter(col("tag") != "")
-        .select("name", "tag")
-        .join(joined_df, on=["name", "tag"], how="left_anti")
-        .join(waste_rds_df.select("id", "name"), on="name", how="left")
-        .filter(col("id").isNotNull()))
+        .join(waste_rds_df, on="name")
+        .join(tag_rds_df, on=["id", "tag"], how="left_anti")
+        .select(col("id").alias("waste_id"), col("tag").alias("name")))
+new_tags_df.show()
 
-if not_in_tag_df.count() > 0:
-    (not_in_tag_df
-        .select(col("id").alias("waste_id"), col("tag").alias("name"))
-        .write
-        .format("jdbc")
-        .option("url", AWS_RDS_URL)
-        .option("dbtable", "tag")
-        .option("user", AWS_RDS_USER)
-        .option("password", AWS_RDS_PASSWORD)
-        .option("driver", "com.mysql.cj.jdbc.Driver")
-        .mode("append")
-        .save())
+if new_tags_df.count() > 0:
+    new_tags_df.write.format("jdbc") \
+        .option("url", AWS_RDS_URL) \
+        .option("dbtable", "tag") \
+        .option("user", AWS_RDS_USER) \
+        .option("password", AWS_RDS_PASSWORD) \
+        .option("driver", "com.mysql.cj.jdbc.Driver") \
+        .mode("append") \
+        .save()
 
-
-# Check and insert new category data
-not_in_category_df = (filterd_df
+# Explode and insert new category data
+new_categories_df = (filtered_df
         .withColumn("material", explode(split("material", " ")))
-        .select("name", col("material").alias("category"))
-        .join(joined_df, on=["name", "category"], how="left_anti")
-        .join(waste_rds_df.select("id", "name"), on="name", how="left")
-        .filter(col("id").isNotNull()))
+        .join(waste_rds_df, on="name")
+        .join(category_rds_df, on=["id", "material"], how="left_anti")
+        .select(col("id").alias("waste_id"), col("material").alias("name")))
+new_categories_df.show()
 
-if filterd_df.count() > 0:
-    (not_in_category_df
-        .select(col("id").alias("waste_id"), col("category").alias("name"))
-        .write
-        .format("jdbc")
-        .option("url", AWS_RDS_URL)
-        .option("dbtable", "category")
-        .option("user", AWS_RDS_USER)
-        .option("password", AWS_RDS_PASSWORD)
-        .option("driver", "com.mysql.cj.jdbc.Driver")
-        .mode("append")
-        .save())
+if new_categories_df.count() > 0:
+    new_categories_df.write.format("jdbc") \
+        .option("url", AWS_RDS_URL) \
+        .option("dbtable", "category") \
+        .option("user", AWS_RDS_USER) \
+        .option("password", AWS_RDS_PASSWORD) \
+        .option("driver", "com.mysql.cj.jdbc.Driver") \
+        .mode("append") \
+        .save()
