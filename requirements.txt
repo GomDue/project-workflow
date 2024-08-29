@@ -1,7 +1,15 @@
+# Hooks
 apache-airflow-providers-apache-spark==4.9.0
 apache-airflow-providers-amazon
 apache-airflow-providers-google
+
+# DB
 pyspark==3.5.2
 pymysql
+
+# ML
 pandas
+transformers
+
+# MLOps
 mlflow

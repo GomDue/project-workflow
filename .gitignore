@@ -2,6 +2,7 @@ __pycache__/
 
 # test model
 yolo.pt
+*.pth
 
 # dataset
 /data/solutions/
