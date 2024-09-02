@@ -9,7 +9,9 @@ pymysql
 
 # ML
 pandas
+datasets
 transformers
+transformers[torch]
 
 # MLOps
 mlflow

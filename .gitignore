@@ -5,7 +5,7 @@ yolo.pt
 *.pth
 
 # dataset
-/data/solutions/
+/data/
 
 # log:
 logs/
