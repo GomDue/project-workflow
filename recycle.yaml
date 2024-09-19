@@ -1,0 +1,16 @@
+# recycle.yaml after modification
+train: "/mnt/d/recycle_dataset/Training"
+val: "/mnt/d/recycle_dataset/Validation"
+
+nc: 9
+names:
+  0: can
+  1: paper
+  2: PET
+  3: plastic
+  4: styrofoam
+  5: vinyl
+  6: glass
+  7: battery
+  8: fluorescent_lamp
+ 

@@ -16,7 +16,7 @@ class RecycleSolutionOperator(BaseOperator):
         gsheet_id: str,
         range: str,
         file_name: str,
-        destination: str,
+        save_path: str,
         gcp_conn_id: str,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -31,7 +31,7 @@ class RecycleSolutionOperator(BaseOperator):
         self.gsheet_id = gsheet_id
         self.range = range
         self.file_name = file_name
-        self.destination = destination
+        self.save_path = save_path
     
     def execute(self, context):
         import pandas as pd
@@ -44,10 +44,10 @@ class RecycleSolutionOperator(BaseOperator):
         spreadsheet = hook.get_values(spreadsheet_id=self.gsheet_id, range_=self.range)
         self.log.info(f"Load {hook.get_spreadsheet(spreadsheet_id=self.gsheet_id)}")
 
-        #os.makedirs(self.destination, exist_ok=True)
+        os.makedirs(self.save_path, exist_ok=True)
         
         df = pd.DataFrame(spreadsheet[2:], columns=spreadsheet[1])
 
-        df.to_csv(os.path.join(self.destination, self.file_name), index=False)
-        self.log.info(f"Save {os.path.join(self.destination, self.file_name)}")
+        df.to_csv(os.path.join(self.save_path, self.file_name), index=False)
+        self.log.info(f"Save {os.path.join(self.save_path, self.file_name)}")
         

@@ -1,29 +1,25 @@
 # Temporary code
-import os, sys
-sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+from pathlib import Path
+ROOT_DIR = Path(__file__).resolve().parents[1]
 
-from config import CONFIG
-
-GCP_CONFIG = CONFIG["GCPConfig"]
-AFL_CONFIG = CONFIG["AirflowConfig"]
-SPK_CONFIG = CONFIG["PysparkConfig"]
-RCS_CONFIG = CONFIG["RecycleSolutionConfig"]
-
-
+import os
 from datetime import datetime
 
+NOW_TIME = datetime.now().strftime('%y%m%d')
+
 from airflow import DAG
+from airflow.models import Variable
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 
 from operators.hatespeechOperator import HateSpeechOperator
 from operators.recycleSolutionOperator import RecycleSolutionOperator
+from operators.yoloOperator import YOLOOperator
 
 
 # load images
 def _connect_aws_s3():
-    import os
     from airflow.hooks.S3_hook import S3Hook
 
     s3_hook = S3Hook(aws_conn_id='aws_s3')
@@ -49,94 +45,110 @@ def _process_dataset():
     pass
 
 
-def _load_kcbert_model(**context):
-    pass
+def _train_kcbert_model(kcbert_param, **context):
+    from models.KcBert.model import CustomeKcBertModel
+
+    model = CustomeKcBertModel(kcbert_param)
+
+    model.train()
 
 
-def _train_kcbert_model(dataset_path, learning_rate, epochs, **context):
-    import mlflow
-    import pandas as pd
 
-    from transformers import AutoTokenizer, AutoModelForSequenceClassification, Trainer, TrainingArguments
-    from datasets import Dataset
+    # from datasets import Dataset
+    # from transformers import (
+    #     AutoTokenizer, 
+    #     AutoModelForSequenceClassification, 
+    #     Trainer, 
+    #     TrainingArguments,
+    #     logging
+    # )
 
-    # 1. Load and preprocess dataset
-    dataset = pd.read_csv(dataset_path)
-    tokenizer = AutoTokenizer.from_pretrained("beomi/kcbert-base")
+    # logging.set_verbosity_warning()
 
-    # Tokenize the dataset
-    def tokenize_function(examples):
-        return tokenizer(examples["text"], padding=True, truncation=True)
+    # # load the configuration file 
+    # with open(kcbert_param) as f:
+    #     params = yaml.safe_load(f)["kcbert"]
 
-    # Convert DataFrame to Huggingface Dataset
-    dataset = Dataset.from_pandas(dataset)
-    dataset = dataset.map(tokenize_function, batched=True)
-    dataset = dataset.rename_column("label", "labels")
+    # # Load and preprocess dataset
+    # dataset = pd.read_csv(dataset_path)
+    # tokenizer = AutoTokenizer.from_pretrained("beomi/kcbert-base")
 
-    # Split dataset into training and validation
-    train_test_split = dataset.train_test_split(test_size=0.15, seed=42)
-    train_dataset = train_test_split['train']
-    valid_dataset = train_test_split['test']
+    # # Tokenize the dataset
+    # def tokenize_function(examples):
+    #     return tokenizer(examples["text"], padding=True, truncation=True)
 
-    # 2. Load model
-    model = AutoModelForSequenceClassification.from_pretrained(
-        "beomi/kcbert-base", num_labels=11
-    )
+    # # Convert DataFrame to Huggingface Dataset
+    # dataset = Dataset.from_pandas(dataset)
+    # dataset = dataset.map(tokenize_function, batched=True)
+    # dataset = dataset.rename_column("label", "labels")
 
-    # 3. Set up Trainer
-    training_args = TrainingArguments(
-        output_dir="./results",
-        evaluation_strategy="epoch",
-        learning_rate=learning_rate,
-        per_device_train_batch_size=16,
-        per_device_eval_batch_size=16,
-        num_train_epochs=epochs,
-        weight_decay=0.01,
-        logging_dir="./logs",
-        logging_steps=10,
-        report_to="mlflow"
-    )
+    # # Split dataset into training and validation
+    # train_test_split = dataset.train_test_split(test_size=0.15, seed=42)
+    # train_dataset = train_test_split['train']
+    # valid_dataset = train_test_split['test']
 
-    trainer = Trainer(
-        model=model,
-        args=training_args,
-        train_dataset=train_dataset,
-        eval_dataset=valid_dataset,
-        tokenizer=tokenizer,
-    )
+    # # Load model
+    # model = AutoModelForSequenceClassification.from_pretrained(
+    #     "beomi/kcbert-base", num_labels=11
+    # )
 
-    # 4. Train and log with MLflow
-    with mlflow.start_run():
-        trainer.train()
+    # # Set up Trainer
+    # training_args = TrainingArguments(
+    #     output_dir=os.path.join(ROOT_DIR, "data", "model", "KcBert"),
+    #     evaluation_strategy=params["evaluation_strategy"],
+    #     eval_steps=params["eval_steps"],
+    #     learning_rate=float(params["learning_rate"]),
+    #     per_device_train_batch_size=params["per_device_train_batch_size"],
+    #     per_device_eval_batch_size=params["per_device_eval_batch_size"],
+    #     num_train_epochs=params["num_train_epochs"],
+    #     weight_decay=params["weight_decay"],
+    #     logging_strategy=params["logging_strategy"],
+    #     logging_steps=params["logging_steps"],
+    #     logging_dir=params["logging_dir"],
+    #     report_to=params["report_to"]
+    # )
 
-        # Log model and parameters with MLflow
-        mlflow.log_params({
-            "epochs": epochs,
-            "learning_rate": learning_rate,
-            "batch_size": training_args.per_device_train_batch_size,
-        })
+    # def compute_metrics(pred):
+    #     from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 
-        # Log metrics (evaluation)
-        eval_metrics = trainer.evaluate()
-        mlflow.log_metrics(eval_metrics)
+    #     labels = pred.label_ids
+    #     preds = pred.predictions.argmax(-1)
 
-        # Log the trained model with MLflow
-        signature = mlflow.models.infer_signature(
-            train_dataset[:5], 
-            trainer.predict(valid_dataset).predictions[:5]
-        )
+    #     precision, recall, f1, _ = precision_recall_fscore_support(labels, preds, average='macro')
+    #     acc = accuracy_score(labels, preds)
 
-        mlflow.transformers.log_model(
-            transformers_model={"model": model, "tokenizer": tokenizer},
-            artifact_path="hatespeech_classifier",
-            task="text-classification",
-            signature=signature,
-            input_example={"text": "This is a sample input text."}
-        )
+    #     return {
+    #         'accuracy': acc,
+    #         'f1': f1,
+    #         'precision': precision,
+    #         'recall': recall,
+    #     }
 
 
-def _save_model():
-    pass
+    # trainer = Trainer(
+    #     model=model,
+    #     args=training_args,
+    #     train_dataset=train_dataset,
+    #     eval_dataset=valid_dataset,
+    #     tokenizer=tokenizer,
+    #     compute_metrics=compute_metrics
+    # )
+    
+    # trainer.train()
+
+    
+
+    
+
+
+        
+        
+
+def _process_yolo_data(**context):
+    from models.YOLO.dataset import dataset
+
+    yolo_dataset = dataset()
+    yolo_dataset.preprocess()
 
 
 default_args = {
@@ -161,18 +173,20 @@ with DAG(
 
     download_gdrive_file = RecycleSolutionOperator(
         task_id="download_gdrive_file",
-        gcp_conn_id=GCP_CONFIG.GOOGLE_CONN,
-        gsheet_id=GCP_CONFIG.GOOGLE_SHEET_ID,
-        range=GCP_CONFIG.GOOGLE_SHEET_NAME,
-        file_name=RCS_CONFIG.RECYCLE_SOLUTION_FILE_NAME,
-        destination=RCS_CONFIG.RECYCLE_SOLUTION_DIR,
+        gcp_conn_id="google_cloud_default",
+        gsheet_id=Variable.get("gcp_sheet_id"),
+        range=Variable.get("gcp_sheet_name"),
+        file_name=f"recycle_solution_{NOW_TIME}.csv",
+        save_path=Path(ROOT_DIR)/"data"/"solutions",
     )
 
     process_recycle_solution = SparkSubmitOperator(
         task_id='process_recycle_solution',
-        application=SPK_CONFIG.PYSPARK_APP__RECYCLE_SOLUTION_PATH,
-        conn_id=SPK_CONFIG.PYSPARK_CONN,
-        conf=SPK_CONFIG.PYSPARK_CONF,
+        application=str(Path(ROOT_DIR)/"spark"/"app"/"process_recycle_solution.py"),
+        conn_id="spark_default",
+        conf={
+            "spark.master":"spark://spark:7077"
+        },
     )
 
     ready_connection = DummyOperator(
@@ -180,32 +194,39 @@ with DAG(
     )
 
 
-    process_dataset = DummyOperator(
+    process_hatespeech_dataset = DummyOperator(
         task_id="process_dataset",
         # python_callable=_process_dataset
-    )
-
-    load_kcbert_model = DummyOperator(
-        task_id="load_kcbert_model",
     )
 
     train_kcbert_model = PythonOperator(
         task_id="train_kcbert_model",
         python_callable=_train_kcbert_model,
         op_kwargs={
-            "dataset_path": "/home/user/airflow/data/hatespeech/hatespeech.csv",
-            "learning_rate": 1e-5,
-            "epochs": 5,
+            "kcbert_param": Path(ROOT_DIR)/"params.yaml",
         }
     )
 
-    save_model = DummyOperator(
-        task_id="save_model",
-    )
+
+    # process_yolo_data = PythonOperator(
+    #     task_id="process_yolo_data",
+    #     python_callable=_process_yolo_data,
+    # )
+
+    # train_yolo_model = YOLOOperator(
+    #     task_id="train_yolo_model",
+    #     conn_id="yolo_default",
+    #     yolo_class=Path(ROOT_DIR)/"recycle.yaml",
+    #     yolo_param=Path(ROOT_DIR)/"params.yaml"
+    # )
+
+
 
     # Task sequence
     download_gdrive_file >> process_recycle_solution
+    process_hatespeech_dataset >> train_kcbert_model
+    # process_yolo_data
+    # train_yolo_model
+
     connect_aws_s3 >> ready_connection
     connect_aws_rds >> ready_connection
-    process_dataset >> load_kcbert_model >> train_kcbert_model >> save_model
-    
