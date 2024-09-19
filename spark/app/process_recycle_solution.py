@@ -34,37 +34,39 @@ Doesn't exist :
         name = material
         waste_id = waste_id
 '''
-# Temporary code
-import os, sys
-sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))))
-
-from config import CONFIG
-
-AWS_CONFIG = CONFIG["AWSRDSConfig"]
-RCS_CINFIG = CONFIG["RecycleSolutionConfig"]
-
+from pathlib import Path
+ROOT_DIR = Path(__file__).resolve().parents[2]
 
 from datetime import datetime
 
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import lit, col, split, explode
 
+from airflow.models import Variable
+
+# config AWS RDS
+AWS_RDS_URL = "jdbc:mysql://{0}:{1}/{2}".format(Variable.get('aws_rds_host'), 3306, Variable.get('aws_rds_database'))
+AWS_RDS_USER = Variable.get('aws_rds_user')
+AWS_RDS_PASSWORD = Variable.get('aws_rds_password')
+AWS_RDS_DRIVER = "com.mysql.cj.jdbc.Driver"
+RECYCLE_SOLUTION_DIR = f"{str(ROOT_DIR)}/data/solutions/recycle_solution_{datetime.now().strftime('%y%m%d')}.csv"
 
 # Create Spark Session
 spark = SparkSession.builder.appName("RecycleSolution").getOrCreate()
 
 # JDBC Reader Settings
 reader = (spark.read.format("jdbc")
-        .option("url", AWS_CONFIG.AWS_RDS_URL)
-        .option('driver', AWS_CONFIG.AWS_RDS_DRIVER)
-        .option("user", AWS_CONFIG.AWS_RDS_USER)
-        .option("password", AWS_CONFIG.AWS_RDS_PASSWORD))
+        .option("url", AWS_RDS_URL)
+        .option("user",AWS_RDS_USER)
+        .option("password", AWS_RDS_PASSWORD)
+        .option('driver', AWS_RDS_DRIVER))
 
 # Load CSV file
 rs_df = (spark.read.format("csv")
         .option("header", "true")
         .option("nullValue", "")
-        .load(RCS_CINFIG.RECYCLE_SOLUTION_FILE_PATH))
+        .load(RECYCLE_SOLUTION_DIR)
+)
 
 # Filter valid data
 filtered_df = (rs_df
@@ -89,11 +91,11 @@ if new_waste_df.count() > 0:
         .select("created_date", "modified_date", col("imgUrl").alias("image_url"), "name", "solution", "state", "writer_id"))
     
     new_waste_insert_df.write.format("jdbc") \
-        .option("url", AWS_CONFIG.AWS_RDS_URL) \
+        .option("url", AWS_RDS_URL) \
         .option("dbtable", "waste") \
-        .option("user", AWS_CONFIG.AWS_RDS_USER) \
-        .option("password", AWS_CONFIG.AWS_RDS_PASSWORD) \
-        .option("driver", AWS_CONFIG.AWS_RDS_DRIVER) \
+        .option("user", AWS_RDS_USER) \
+        .option("password", AWS_RDS_PASSWORD) \
+        .option("driver", AWS_RDS_DRIVER) \
         .mode("append") \
         .save()
 
@@ -115,11 +117,11 @@ new_tags_df.show()
 
 if new_tags_df.count() > 0:
     new_tags_df.write.format("jdbc") \
-        .option("url", AWS_CONFIG.AWS_RDS_URL) \
+        .option("url", AWS_RDS_URL) \
         .option("dbtable", "tag") \
-        .option("user", AWS_CONFIG.AWS_RDS_USER) \
-        .option("password", AWS_CONFIG.AWS_RDS_PASSWORD) \
-        .option("driver", AWS_CONFIG.AWS_RDS_DRIVER) \
+        .option("user",  AWS_RDS_USER) \
+        .option("password", AWS_RDS_PASSWORD) \
+        .option("driver", AWS_RDS_DRIVER) \
         .mode("append") \
         .save()
 
@@ -133,10 +135,10 @@ new_categories_df.show()
 
 if new_categories_df.count() > 0:
     new_categories_df.write.format("jdbc") \
-        .option("url", AWS_CONFIG.AWS_RDS_URL) \
+        .option("url", AWS_RDS_URL) \
         .option("dbtable", "category") \
-        .option("user", AWS_CONFIG.AWS_RDS_USER) \
-        .option("password", AWS_CONFIG.AWS_RDS_PASSWORD) \
-        .option("driver", AWS_CONFIG.AWS_RDS_DRIVER) \
+        .option("user", AWS_RDS_USER) \
+        .option("password", AWS_RDS_PASSWORD) \
+        .option("driver", AWS_RDS_DRIVER) \
         .mode("append") \
         .save()
