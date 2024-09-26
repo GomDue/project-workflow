@@ -1,23 +1,25 @@
 from datetime import datetime
 
+NOW_TIME = datetime.now().strftime('%y%m%d')
+
 import torch
 import transformers
 
-class CustomeKcBertModel():
+class KcbertModel():
     def __init__(
         self,
-        kcbert_param: str,
+        param_path: str,
     ) -> None:
         import yaml
 
         # load the configuration file 
-        with open(kcbert_param) as f:
+        with open(param_path) as f:
             self.params = yaml.safe_load(f)["kcbert"]
         
         from torch.utils.tensorboard import SummaryWriter
         self.writer = SummaryWriter(
-            log_dir=self.params["log_dir"],
-            filename_suffix=datetime.now().strftime('%y%m%d')
+            log_dir="s3://midas-bucket-1/models/kcbert/",
+            #"./data/model/kcbert/tensorboard"
         )
 
         self.model = transformers.AutoModelForSequenceClassification.from_pretrained(
@@ -31,13 +33,13 @@ class CustomeKcBertModel():
         self.model = self.model.to(self.device)
 
 
-    def train(self, ):
+    def train(self):
         learning_rate=float(self.params["learning_rate"])
         batch_size=self.params["batch_size"]
         epochs=self.params["epochs"]
 
         import pandas as pd
-        from models.KcBert.dataset import CustomHateSpeechDataset
+        from models.kcbert.dataset import CustomHateSpeechDataset
         dataset = CustomHateSpeechDataset(
             dataset=pd.read_csv(self.params["dataset_dir"]), 
             tokenizer=self.tokenizer, 
@@ -137,6 +139,8 @@ class CustomeKcBertModel():
         )
 
         self.writer.close()
+
+        torch.save(self.model.state_dict(), f"./data/model/kcbert/state_dict/{NOW_TIME}.pt")
 
 
     def log_accuracy_loss(self, train_accuracy, train_loss, valid_accuracy, valid_loss, epoch):

@@ -1,15 +1,14 @@
-# KcBert params
+# kcbert params
 # more information: https://huggingface.co/docs/transformers/v4.44.2/en/main_classes/trainer#transformers.TrainingArguments
 kcbert:
   base_model_name: beomi/kcbert-base
-  model_param_save_path: ./airflow/kcbert_hatespeech_classifier.pth
+  model_param_save_path: ./kcbert_hatespeech_classifier.pth
   learning_rate: 1e-5
   batch_size: 11
-  epochs: 3
-  dataset_dir: ./airflow/data/hatespeech/hatespeech.csv
+  epochs: 1
+  dataset_dir: ./data/hatespeech/hatespeech.csv
   test_size: 0.15
   random_state: 42
-  log_dir: ./airflow/data/model/KcBert
 
 # YOLO params
 # more information: https://docs.ultralytics.com/ko/modes/train/#train-settings
