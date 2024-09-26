@@ -6,7 +6,7 @@ from airflow.utils.decorators import apply_defaults
 
 from typing import Optional, Union, Sequence
 
-class RecycleSolutionOperator(BaseOperator):
+class GoogleSheetToCSVOperator(BaseOperator):
     """
     분리 배출 방법이 적힌 구글 시트를 csv 파일로 저장
     """
