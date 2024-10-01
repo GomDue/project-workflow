@@ -19,7 +19,7 @@ class KcbertModel():
         from torch.utils.tensorboard import SummaryWriter
         self.writer = SummaryWriter(
             log_dir="s3://midas-bucket-1/models/kcbert/",
-            #"./data/model/kcbert/tensorboard"
+            filename_suffix=f"kcbert_{NOW_TIME}"
         )
 
         self.model = transformers.AutoModelForSequenceClassification.from_pretrained(

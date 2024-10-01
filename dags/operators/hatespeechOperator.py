@@ -6,8 +6,9 @@ class HateSpeechOperator(BaseOperator):
         self._conn_id = conn_id
     
     def execute(self, context):
-        from hooks.aws_rds_hook import AWSRDSHook
         import pandas as pd
+
+        from hooks.aws_rds_hook import AWSRDSHook
     
         rds_hook = AWSRDSHook(self._conn_id)
         rds_conn, rds_cur = rds_hook.get_conn()

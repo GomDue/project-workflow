@@ -1,4 +1,3 @@
-# Temporary code
 from pathlib import Path
 from datetime import datetime
 
@@ -32,7 +31,7 @@ NOW_TIME = datetime.now().strftime('%y%m%d')
 
 
 @dag(
-    dag_id='midas_dag', 
+    dag_id="midas_dag", 
     schedule_interval=None
 )
 def midas_dag():

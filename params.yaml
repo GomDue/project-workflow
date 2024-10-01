@@ -17,7 +17,7 @@ yolo:
   epochs: 3
   patience: 100
   batch: 16
-  imgsz: 640
+  imgsz: 1280
   cache: False
   device: None
   workers: 8
@@ -32,3 +32,4 @@ yolo:
   cls: 0.5
   dropout: 0.0
   val: True
+  runs_dir: ./data/model/yolo
