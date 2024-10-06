@@ -22,6 +22,7 @@ class YoloModel:
 
         settings.update({
             "runs_dir": self.params["runs_dir"],
+            "mlflow": False,
             "tensorboard": True,
         })
         
@@ -36,7 +37,7 @@ class YoloModel:
             cache=self.params["cache"],
             device=self.params["device"],
             workers=self.params["workers"],
-            name=self.params["name"]+NOW_TIME,
+            name=self.params["name"]+f"_{NOW_TIME}",
             pretrained=self.params["pretrained"],
             optimizer=self.params["optimizer"],
             verbose=self.params["verbose"],
@@ -47,11 +48,11 @@ class YoloModel:
             cls=self.params["cls"],
             dropout=self.params["dropout"],
             val=self.params["val"],
-            project=f"{NOW_TIME}"
+            project=self.params["save_dir"]+f"{NOW_TIME}"
         )
 
         # Evaluate the model's performance on the validation set
         self.model.val()
 
         import torch
-        torch.save(self.model.state_dict(), f"./data/model/yolo/state_dict/{NOW_TIME}.pt")
+        torch.save(self.model.state_dict(), self.params["save_state_dict_dir"]+f"{NOW_TIME}.pt")

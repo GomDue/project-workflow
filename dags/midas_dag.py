@@ -8,7 +8,7 @@ from operators.process import GoogleSheetToCSVOperator
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-NOW_TIME = datetime.now().strftime('%y%m%d')
+NOW_TIME = datetime.now().strftime("%y%m%d")
 
 
 # load images
@@ -32,7 +32,9 @@ NOW_TIME = datetime.now().strftime('%y%m%d')
 
 @dag(
     dag_id="midas_dag", 
-    schedule_interval=None
+    schedule_interval="@daily",
+    start_date=datetime(2024, 10, 1),
+    catchup=False,
 )
 def midas_dag():
     download_gdrive_file = GoogleSheetToCSVOperator(

@@ -20,7 +20,7 @@ class GoogleSheetToCSVOperator(BaseOperator):
         gcp_conn_id: str,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        api_version: str = 'v3',
+        api_version: str = 'v4',
         **kwargs
     ) -> None:
         super().__init__(**kwargs)

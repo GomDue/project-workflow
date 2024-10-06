@@ -1,5 +1,7 @@
+from pathlib import Path
 from datetime import datetime
 
+ROOT_DIR = Path(__file__).resolve().parents[1]
 NOW_TIME = datetime.now().strftime('%y%m%d')
 
 import torch
@@ -21,6 +23,9 @@ class KcbertModel():
             log_dir="s3://midas-bucket-1/models/kcbert/",
             filename_suffix=f"kcbert_{NOW_TIME}"
         )
+
+        import os
+        print(os.path.abspath(self.params["model_param_save_path"]))
 
         self.model = transformers.AutoModelForSequenceClassification.from_pretrained(
             self.params["base_model_name"], num_labels=11
@@ -140,7 +145,7 @@ class KcbertModel():
 
         self.writer.close()
 
-        torch.save(self.model.state_dict(), f"./data/model/kcbert/state_dict/{NOW_TIME}.pt")
+        torch.save(self.model.state_dict(), self.params["save_state_dict_dir"]+f"{NOW_TIME}.pt")
 
 
     def log_accuracy_loss(self, train_accuracy, train_loss, valid_accuracy, valid_loss, epoch):
