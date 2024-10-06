@@ -52,7 +52,10 @@ AWS_RDS_DRIVER = "com.mysql.cj.jdbc.Driver"
 RECYCLE_SOLUTION_DIR = f"{str(ROOT_DIR)}/data/solutions/recycle_solution_{datetime.now().strftime('%y%m%d')}.csv"
 
 # Create Spark Session
-spark = SparkSession.builder.appName("RecycleSolution").getOrCreate()
+spark = (SparkSession.builder 
+        .appName("RecycleSolution") 
+        .master("local[*]") 
+        .getOrCreate())
 
 # JDBC Reader Settings
 reader = (spark.read.format("jdbc")

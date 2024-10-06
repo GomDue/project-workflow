@@ -2,9 +2,11 @@
 apache-airflow-providers-apache-spark==4.9.0
 apache-airflow-providers-amazon
 apache-airflow-providers-google
+apache-airflow-providers-postgres
 
 # DB
 pymysql
+postgresql
 
 # Process
 pandas

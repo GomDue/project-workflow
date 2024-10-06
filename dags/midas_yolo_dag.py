@@ -118,6 +118,7 @@ def midas_yolo_dag():
     # Task sequence
     # process_yolo_data() >> train_yolo_model() >> save_model_to_s3
     # wait_for_image_in_s3 >> check_sqs()
-    get_verified_image() >> change_category_to_yolo_format()
+    # get_verified_image() >> change_category_to_yolo_format()
+    train_yolo_model()
 
 midas_yolo_dag()

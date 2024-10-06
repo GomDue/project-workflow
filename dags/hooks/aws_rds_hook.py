@@ -19,7 +19,7 @@ class AWSRDSHook(BaseHook):
                     host=Variable.get('aws_rds_host'),
                     user=Variable.get('aws_rds_user'),
                     password=Variable.get('aws_rds_password'),
-                    port=int(Variable.get('aws_rds_port')),
+                    port=3306,
                     database=Variable.get('aws_rds_database'),
                 )
                 self._cur = self._conn.cursor()
