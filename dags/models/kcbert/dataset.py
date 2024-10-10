@@ -3,11 +3,21 @@ from torch.utils.data import Dataset
 class CustomHateSpeechDataset(Dataset):
     def __init__(
             self, 
-            dataset, 
             tokenizer, 
             max_length=128
         ) -> None:
-        self.dataset = dataset
+        import pandas as pd
+
+        from airflow.providers.postgres.hooks.postgres import PostgresHook
+
+        hook = PostgresHook(postgres_conn_id="postgres_default")
+        conn = hook.get_conn()
+
+        self.dataset = pd.read_sql("""
+            SELECT content, type
+            FROM comment 
+            WHERE type IS NOT NULL
+        """, con=conn)
         self.tokenizer = tokenizer
         self.max_length = max_length
 
