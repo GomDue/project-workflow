@@ -24,9 +24,6 @@ class KcbertModel():
             filename_suffix=f"kcbert_{NOW_TIME}"
         )
 
-        import os
-        print(os.path.abspath(self.params["model_param_save_path"]))
-
         self.model = transformers.AutoModelForSequenceClassification.from_pretrained(
             self.params["base_model_name"], num_labels=11
         )
@@ -37,16 +34,13 @@ class KcbertModel():
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.model = self.model.to(self.device)
 
-
     def train(self):
         learning_rate=float(self.params["learning_rate"])
         batch_size=self.params["batch_size"]
         epochs=self.params["epochs"]
 
-        import pandas as pd
         from models.kcbert.dataset import CustomHateSpeechDataset
         dataset = CustomHateSpeechDataset(
-            dataset=pd.read_csv(self.params["dataset_dir"]), 
             tokenizer=self.tokenizer, 
             max_length=128
         )
@@ -157,11 +151,12 @@ class KcbertModel():
 
 
     def log_pr_curve_and_f1(self, all_val_labels, all_val_preds, all_val_probs, epoch):
-        import numpy as np
-        from sklearn.metrics import precision_recall_curve, f1_score
         """
         Log PR curve and F1 score for multiclass classification.
         """
+        import numpy as np
+        from sklearn.metrics import precision_recall_curve, f1_score
+        
         # Calculate F1 score for macro average (across all classes)
         f1 = f1_score(all_val_labels, all_val_preds, average='macro')
         self.writer.add_scalar("F1 Score/test", f1, epoch)
