@@ -1,0 +1,27 @@
+__pycache__/
+venv/
+
+# test model
+yolo.pt
+*.pth
+
+# dataset
+/data/
+
+# log:
+logs/
+
+# database
+*.db
+
+# Environments
+.env
+
+# Airflow
+airflow-webserver.pid
+airflow.cfg
+
+# Docker 
+.dockerignore
+Dockerfile
+docker-compose.yaml

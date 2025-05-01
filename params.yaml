@@ -1,0 +1,38 @@
+# kcbert params
+# more information: https://huggingface.co/docs/transformers/v4.44.2/en/main_classes/trainer#transformers.TrainingArguments
+kcbert:
+  base_model_name: beomi/kcbert-base
+  model_param_save_path: ./airflow/kcbert_hatespeech_classifier.pth
+  learning_rate: 1e-5
+  batch_size: 11
+  epochs: 1
+  dataset_dir: ./airflow/data/hatespeech/hatespeech.csv
+  test_size: 0.15
+  random_state: 42
+  save_state_dict_dir: ./airflow/data/model/kcbert/state_dict/
+
+# YOLO params
+# more information: https://docs.ultralytics.com/ko/modes/train/#train-settings
+yolo:
+  model: yolov10m.pt
+  epochs: 3
+  patience: 100
+  batch: 16
+  imgsz: 1280
+  cache: False
+  device: "cuda:0"
+  workers: 8
+  name: yolov10m
+  pretrained: True
+  optimizer: auto
+  verbose: False
+  lr0: 0.01
+  momentum: 0.937
+  weight_decay: 0.0005
+  box: 7.5
+  cls: 0.5
+  dropout: 0.0
+  val: True
+  runs_dir: ./airflow/data/model/yolo
+  save_dir: ./airflow/data/model/yolo/
+  save_state_dict_dir: ./airflow/data/model/yolo/state_dict/
