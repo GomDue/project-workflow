@@ -11,25 +11,6 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 NOW_TIME = datetime.now().strftime("%y%m%d")
 
 
-# load images
-# def _connect_aws_s3():
-#     from airflow.hooks.S3_hook import S3Hook
-
-#     s3_hook = S3Hook(aws_conn_id='aws_s3')
-#     bucket = 'midas-bucket-1'
-
-#     output_path = os.path.expanduser('~/data/test')
-#     os.makedirs(output_path, exist_ok=True)
-
-#     for image in s3_hook.list_keys(bucket_name=bucket):
-#         print(image)
-#         # if not os.path.exists(os.path.join(output_path, image)) and '/' not in image:
-#         #     download_image_path = s3_hook.download_file(key=image, bucket_name=bucket, local_path=output_path)
-#         #     new_image_path = os.path.join('/'.join(download_image_path.split('/')[:-1]), image)
-
-#         #     os.rename(src=download_image_path, dst=new_image_path)
-
-
 @dag(
     dag_id="midas_dag", 
     schedule_interval="@daily",
@@ -37,6 +18,14 @@ NOW_TIME = datetime.now().strftime("%y%m%d")
     catchup=False,
 )
 def midas_dag():
+    """
+    매일 Google Sheet에서 데이터를 다운로드하고 Spark로 전처리하는 DAG.
+
+    Workflow:
+    1. Google Sheet에서 분리배출 솔루션 데이터를 CSV로 저장
+    2. Spark 애플리케이션을 통해 해당 데이터를 전처리
+    """
+
     download_gdrive_file = GoogleSheetToCSVOperator(
         task_id="download_gdrive_file",
         gcp_conn_id="google_cloud_default",
@@ -45,6 +34,12 @@ def midas_dag():
         file_name=f"recycle_solution_{NOW_TIME}.csv",
         save_path=Path(ROOT_DIR)/"data"/"solutions",
     )
+    """
+    Google Sheet 데이터를 로컬 CSV 파일로 저장하는 Task.
+
+    - Google Drive 연동을 통해 실시간 데이터를 수집
+    - 파일명은 실행 날짜 기준으로 동적으로 생성됨
+    """
 
     process_recycle_solution = SparkSubmitOperator(
         task_id='process_recycle_solution',
@@ -54,8 +49,14 @@ def midas_dag():
             "spark.master":"spark://spark:7077"
         },
     )
+    """
+    다운로드된 CSV 파일을 Spark로 전처리하는 Task.
 
-    # Task sequence
+    - SparkSubmitOperator를 통해 외부 Python 스크립트를 실행
+    - Spark 클러스터 환경에서 실행되며, 데이터 변환/정제 수행
+    """
+
     download_gdrive_file >> process_recycle_solution
+
 
 midas_dag()
