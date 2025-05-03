@@ -34,7 +34,55 @@ def midas_yolo_dag():
         model = YoloModel(Path(ROOT_DIR)/"recycle.yaml", Path(ROOT_DIR)/"params.yaml")
         model.train()
 
-    train_yolo_model()
+    @task
+    def update_latest_model_yaml():
+        """
+        latest_model.yaml을 S3에서 불러와 해당 model_type 정보만 업데이트 후 다시 업로드합니다.
+        """
+        import os
+        import yaml
+        import boto3
+
+        model_type = "yolo"
+        model_name = f"{model_type}_{NOW_TIME}.pt"
+        s3_model_path = f"models/{model_type}/model/{model_name}"   
+
+        # AWS S3 연결
+        session = boto3.Session(
+            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+            region_name=os.getenv("AWS_DEFAULT_REGION")
+        )
+        s3 = session.resource("s3")
+        bucket = s3.Bucket(os.getenv("AWS_S3_BUCKET_NAME"))
+        key = "models/latest_model.yaml"
+        local_path = Path(ROOT_DIR) / "latest_model.yaml"
+
+        # 기존 latest_model.yaml 다운로드 시도
+        try:
+            bucket.download_file(key, str(local_path))
+            with open(local_path, "r") as f:
+                latest_model = yaml.safe_load(f)
+            if latest_model is None:
+                latest_model = {"models": {}}
+        except Exception:
+            latest_model = {"models": {}}
+
+        # 해당 model_type만 업데이트
+        latest_model["models"][model_type] = {
+            "name": model_name,
+            "path": s3_model_path
+        }
+
+        # 다시 파일로 저장하고 업로드
+        with open(local_path, "w") as f:
+            yaml.dump(latest_model, f)
+
+        bucket.upload_file(str(local_path), key)
+        print(f"Updated {model_type} in latest_model.yaml and uploaded to s3://{bucket.name}/{key}")
+
+
+    train_yolo_model() >> update_latest_model_yaml()
 
 
 midas_yolo_dag()
