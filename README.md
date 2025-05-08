@@ -24,50 +24,36 @@
 
 
 
-## 3. 주요 기능 및 흐름
+## 3. 전체 파이프라인 구성 및 시스템 아키텍처
 
-* Apache Airflow를 이용한 **DAG 기반 자동화 학습 파이프라인 구축**
+* **DAG 기반 자동화 흐름**
 
-  * Google Sheet 및 AWS RDS 기반 데이터 수집 → Spark 처리 → PostgreSQL 저장
-  * `Unsmile Dataset` 기반 KcBERT 혐오 발언 분류 모델 학습
-  * AI-Hub 기반 재활용품 이미지 데이터셋 전처리 후 YOLOv8 모델 학습
-* 학습된 모델은 `.pt` 형태로 저장되며, 버전별로 AWS S3에 업로드
-* `latest_model.yaml`을 기준으로 FastAPI 서버와 연동 가능하도록 모델 버전 정보 관리
-* TensorBoard를 연동하여 학습 로그 및 PR Curve 시각화
+  * Apache Airflow를 활용하여 데이터 수집부터 학습, 저장까지 전 과정 자동화
+  * Google Sheet 및 RDS 기반 데이터 수집 → Spark 전처리 → PostgreSQL 저장
+  * KoBERT 모델 학습 (`midas_training_dag`) 및 YOLOv8 모델 학습 (`midas_yolo_dag`) 자동화
 
+* **모델 버전 관리 및 서빙 연동**
 
-## 4. 시스템 아키텍처
-### 구성 설명
+  * 학습된 모델은 `.pt` 파일로 저장되어 S3에 업로드
+  * `latest_model.yaml`을 통해 FastAPI 서버와 자동 연동되어 최신 모델 반영
 
-* **데이터 수집 DAG (`midas_dag`)**
+* **DAG 구성 요약**
 
-  * 팀원들이 Google Sheet에 기록한 지역별 분리배출 정책을 매일 자정에 수집
-  * PostgreSQL에 저장된 기존 데이터와 비교하여 **신규 항목만 필터링** 및 저장
-
-* **혐오 표현 필터링 DAG (`midas_hate_speech_dag`)**
-
-  * 초기에 `Unsmile Dataset`을 전처리하여 `comment` 테이블에 저장
-  * 이후에는 RDS에서 새로운 댓글만 수집하여 정제 후 저장
-  * 수집이 완료되면 KcBERT 학습 DAG(`midas_training_dag`)을 트리거
-
-* **KcBERT 학습 DAG (`midas_training_dag`)**
-
-  * `params.yaml` 기반으로 학습 설정
-  * 학습된 state\_dict 파일은 S3에 저장되고 `latest_model.yaml` 업데이트 수행
-
-* **YOLOv8 학습 DAG (`midas_yolo_dag`)**
-
-  * 전처리된 이미지 데이터셋을 기반으로 YOLO 모델 학습
-  * `recycle.yaml` 기반 class 정의 및 데이터 경로 설정
-  * 학습된 모델은 S3에 저장되며 `latest_model.yaml` 자동 갱신
+  | DAG 이름                  | 역할                                    |
+  | ----------------------- | ------------------------------------- |
+  | `midas_dag`             | Google Sheet 기반 정책 수집 및 PostgreSQL 반영 |
+  | `midas_hate_speech_dag` | 댓글 수집 및 정제 → `midas_training_dag` 트리거 |
+  | `midas_training_dag`    | KoBERT 학습 및 S3 저장 + YAML 업데이트         |
+  | `midas_yolo_dag`        | YOLOv8 학습 및 모델 버전 관리 자동화 + YAML 업데이트          |
 
 * **모델 성능 시각화**
 
-  * TensorBoard 로그를 자동 저장하여 모델 학습 상태 및 성능 확인 가능
+  * 학습 로그는 TensorBoard 로그 경로에 자동 저장되며
+  * PR Curve, F1 Score 등 성능 지표 시각화 가능
 
 
 
-## 5. 문제 해결 경험
+## 4. 문제 해결
 
 * **모델 버전 관리 및 비용 이슈**   
   MLflow를 도입하려 하였으나, 구성 이해 부족 및 AWS 환경 설정 미숙으로 도입에 실패함. 이후 `.pt`, `params.yaml`, `latest_model.yaml`을 직접 저장하는 방식으로 대체함.   
@@ -75,12 +61,11 @@
 
 * **데이터 정제 및 클래스 통합 설계**   
   노트북 환경의 저장 공간 제약으로 인해 전체 데이터셋을 사용할 수 없었고, 학습에 적합한 BOX 타입 어노테이션만 선별하여 사용함.   
-  또한, 분리배출 안내 서비스에서 실제로 분류해야 할 대상은 9종에 한정되어 있었기 때문에,   
-  유사한 클래스를 통합하여 총 9개의 클래스로 재구성함.
-  
+  또한, 분리배출 안내 서비스에서 실제로 분류해야 할 대상은 9종에 한정되어 있었기 때문에, 유사한 클래스를 통합하여 총 9개의 클래스로 재구성함.
 
 
-## 6. 프로젝트 회고 및 기술적 인사이트
+
+## 5. 프로젝트 회고
 
 * **모델 버전 및 실험 관리의 중요성 인식**   
   MLflow를 제대로 이해하지 못한 채 도입을 시도하면서 구조와 설정에 대한 부족한 이해로 인해 실패를 겪음.    
