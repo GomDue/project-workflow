@@ -1,10 +1,10 @@
-# MIDAS 모델 학습 및 데이터 파이프라인 구축
+# 분리위키 모델 학습 및 데이터 파이프라인 구축
 
 ## 1. 프로젝트 개요
 
-* **프로젝트명**: MIDAS 모델 학습 및 데이터 파이프라인 구축
+* **프로젝트명**: 분리위키 모델 학습 및 데이터 파이프라인 구축
 * **프로젝트 기간**: 2024.03 ~ 2024.11
-* **목적 및 배경**: 분리배출 안내 서비스 `분리위키`의 AI 기능을 위해,
+* **목적 및 배경**: 분리배출 가이드 제공 서비스인 "분리위키"를 AI 기능을 위해,
 
   * **혐오 표현 분류 (KcBERT)**
   * **이미지 기반 재활용 품목 분류 (YOLOv8)**
@@ -14,17 +14,14 @@
 
 ## 2. 기술 스택
 
-| 구분                         | 기술                                                    |
-| -------------------------- | ----------------------------------------------------- |
-| **Language**               | Python 3.10                                           |
-| **Orchestration**          | Apache Airflow                                        |
-| **Distributed Processing** | Apache Spark                                          |
-| **모델 학습**                  | HuggingFace Transformers (KcBERT), Ultralytics YOLOv8 |
-| **Database**               | AWS RDS (MySQL), PostgreSQL                           |
-| **Storage**                | AWS S3                                                |
-| **Deployment**             | Docker, Docker Compose                                |
-| **Monitoring**             | TensorBoard                                           |
-| **ETL & 기타**               | Pandas, SQLAlchemy, loguru, boto3                     |
+| 분류                 | 기술 목록                                                    |
+| ------------------ | -------------------------------------------------------- |
+| **개발 언어 및 환경**     | Python 3.10, Docker, Docker Compose                      |
+| **AI 모델 및 학습 도구**  | KcBERT (Transformers), YOLOv8 (Ultralytics), TensorBoard |
+| **데이터 처리 및 파이프라인** | Apache Airflow, Apache Spark, Pandas, SQLAlchemy         |
+| **인프라 및 배포**       | AWS S3, AWS RDS (MySQL), PostgreSQL, boto3               |
+| **로깅 및 모니터링**      | loguru, TensorBoard                                      |
+
 
 
 ## 3. 주요 기능 및 흐름
